@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Goal Setting App</title>
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        th,
+        td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f4f4f4;
+        }
+
+        .progress-good {
+            color: green;
+        }
+
+        .progress-warning {
+            color: orange;
+        }
+
+        .progress-danger {
+            color: red;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Goal Setting Application</h1>
+
+    <!-- Goal Form -->
+    <div id="goalForm">
+        <h2>Add New Goal</h2>
+        <input type="text" id="goalTitle" placeholder="Goal Title" required>
+        <input type="text" id="goalDescription" placeholder="Goal Description" required>
+        <input type="date" id="goalDeadline" required>
+        <button onclick="addGoal()">Add Goal</button>
+    </div>
+
+    <!-- Goals Table -->
+    <h2>Your Goals</h2>
+    <table id="goalsTable">
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>Description</th>
+                <th>Deadline</th>
+                <th>Progress</th>
+                <th>Activities</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="goalsTableBody"></tbody>
+    </table>
+
+    <!-- Activities Modal -->
+    <div id="activitiesModal" class="hidden">
+        <h3>Activities for: <span id="currentGoalTitle"></span></h3>
+        <div>
+            <input type="text" id="activityTitle" placeholder="Activity Title">
+            <input type="number" id="activityProgress" min="0" max="100" placeholder="Progress %">
+            <button onclick="addActivity()">Add Activity</button>
+        </div>
+        <table id="activitiesTable">
+            <thead>
+                <tr>
+                    <th>Activity</th>
+                    <th>Progress</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="activitiesTableBody"></tbody>
+        </table>
+        <button onclick="closeActivitiesModal()">Close</button>
+    </div>
+    <script src="./main.js" type="application/javascript"></script>
+</body>
+
+</html>
