@@ -76,25 +76,43 @@ function loadGoals() {
 
 function createGoalRow(goal) {
     const row = document.createElement('tr');
+    const progressClass = goal.progress >= 80 ? 'text-green-500' :
+        goal.progress >= 50 ? 'text-yellow-500' :
+            'text-red-500';
 
-    const progressClass = goal.progress >= 80 ? 'progress-good' :
-        goal.progress >= 50 ? 'progress-warning' :
-            'progress-danger';
-
+    row.className = 'hover:bg-gray-50';
     row.innerHTML = `
-        <td>${goal.title}</td>
-        <td>${goal.description}</td>
-        <td>${new Date(goal.deadline).toLocaleDateString()}</td>
-        <td class="${progressClass}">${goal.progress}%</td>
-        <td>
-            <button onclick="showActivities(${goal.id})">View Activities</button>
+        <td class="px-6 py-4 whitespace-nowrap">
+            <div class="text-sm font-medium text-gray-900">${goal.title}</div>
         </td>
-        <td>
-            <button onclick="deleteGoal(${goal.id})">Delete</button>
-            <button onclick="updateGoal(${goal.id})">Update</button>
+        <td class="px-6 py-4">
+            <div class="text-sm text-gray-500">${goal.description}</div>
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap">
+            <div class="text-sm text-gray-500">${new Date(goal.deadline).toLocaleDateString()}</div>
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap">
+            <div class="flex items-center">
+                <div class="relative w-full h-2 bg-gray-200 rounded">
+                    <div class="absolute top-0 left-0 h-full ${progressClass} bg-current rounded" 
+                         style="width: ${goal.progress}%"></div>
+                </div>
+                <span class="ml-2 text-sm ${progressClass}">${goal.progress}%</span>
+            </div>
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap">
+            <button onclick="showActivities(${goal.id})" 
+                    class="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                View Activities
+            </button>
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+            <button onclick="deleteGoal(${goal.id})" 
+                    class="text-red-600 hover:text-red-900">Delete</button>
+            <button onclick="updateGoal(${goal.id})" 
+                    class="text-blue-600 hover:text-blue-900">Update</button>
         </td>
     `;
-
     return row;
 }
 
@@ -122,9 +140,27 @@ function deleteGoal(goalId) {
 // Activity Management
 let currentGoalId = null;
 
+// Modal state management
+let alpineModal;
+document.addEventListener('alpine:init', () => {
+    Alpine.data('activitiesModal', () => ({
+        open: false,
+        close() {
+            this.open = false;
+            closeActivitiesModal();
+        }
+    }));
+});
+
 function showActivities(goalId) {
     currentGoalId = goalId;
     const modal = document.getElementById('activitiesModal');
+
+    // Get Alpine component instance and set open state
+    const alpineComponent = Alpine.$data(modal);
+    if (alpineComponent) {
+        alpineComponent.open = true;
+    }
     modal.classList.remove('hidden');
 
     const transaction = db.transaction(['goals', 'activities'], 'readonly');
@@ -178,12 +214,25 @@ function addActivity() {
 
 function createActivityRow(activity) {
     const row = document.createElement('tr');
+    row.className = 'hover:bg-gray-50';
     row.innerHTML = `
-        <td>${activity.title}</td>
-        <td>${activity.progress}%</td>
-        <td>
-            <button onclick="deleteActivity(${activity.id})">Delete</button>
-            <button onclick="updateActivity(${activity.id})">Update</button>
+        <td class="px-6 py-4 whitespace-nowrap">
+            <div class="text-sm text-gray-900">${activity.title}</div>
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap">
+            <div class="flex items-center">
+                <div class="relative w-full h-2 bg-gray-200 rounded">
+                    <div class="absolute top-0 left-0 h-full bg-blue-500 rounded" 
+                         style="width: ${activity.progress}%"></div>
+                </div>
+                <span class="ml-2 text-sm text-gray-600">${activity.progress}%</span>
+            </div>
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+            <button onclick="deleteActivity(${activity.id})" 
+                    class="text-red-600 hover:text-red-900">Delete</button>
+            <button onclick="updateActivity(${activity.id})" 
+                    class="text-blue-600 hover:text-blue-900">Update</button>
         </td>
     `;
     return row;
@@ -253,6 +302,108 @@ function clearGoalForm() {
 }
 
 function closeActivitiesModal() {
-    document.getElementById('activitiesModal').classList.add('hidden');
+    const modal = document.getElementById('activitiesModal');
+
+    // Get Alpine component instance and set close state
+    const alpineComponent = Alpine.$data(modal);
+    if (alpineComponent) {
+        alpineComponent.open = false;
+    }
+
+    // Reset form fields
+    document.getElementById('activityTitle').value = '';
+    document.getElementById('activityProgress').value = '';
+
+    // Reset any activity update state
+    const addButton = document.querySelector('button[onclick="addActivity()"]');
+    if (addButton && addButton.textContent !== 'Add Activity') {
+        addButton.textContent = 'Add Activity';
+        addButton.onclick = addActivity;
+    }
+
+    // Clear current goal
     currentGoalId = null;
+
+    // Add hidden class after animation
+    setTimeout(() => {
+        modal.classList.add('hidden');
+    }, 200);
+}
+
+// Add the missing updateGoal function
+function updateGoal(goalId) {
+    const transaction = db.transaction(['goals'], 'readonly');
+    const store = transaction.objectStore('goals');
+
+    store.get(goalId).onsuccess = (event) => {
+        const goal = event.target.result;
+
+        // Populate form with current values
+        document.getElementById('goalTitle').value = goal.title;
+        document.getElementById('goalDescription').value = goal.description;
+        document.getElementById('goalDeadline').value = goal.deadline.split('T')[0];
+
+        // Remove old goal and add updated one when form is submitted
+        const updateButton = document.querySelector('button[onclick="addGoal()"]');
+        updateButton.textContent = 'Update Goal';
+        updateButton.onclick = () => {
+            const updatedGoal = {
+                id: goalId,
+                title: document.getElementById('goalTitle').value,
+                description: document.getElementById('goalDescription').value,
+                deadline: document.getElementById('goalDeadline').value,
+                progress: goal.progress,
+                createdAt: goal.createdAt
+            };
+
+            const updateTransaction = db.transaction(['goals'], 'readwrite');
+            const updateStore = updateTransaction.objectStore('goals');
+
+            updateStore.put(updatedGoal).onsuccess = () => {
+                clearGoalForm();
+                loadGoals();
+                // Reset button to original state
+                updateButton.textContent = 'Add Goal';
+                updateButton.onclick = addGoal;
+            };
+        };
+    };
+}
+
+
+// Update activity management functions
+function updateActivity(activityId) {
+    const transaction = db.transaction(['activities'], 'readonly');
+    const store = transaction.objectStore('activities');
+
+    store.get(activityId).onsuccess = (event) => {
+        const activity = event.target.result;
+
+        document.getElementById('activityTitle').value = activity.title;
+        document.getElementById('activityProgress').value = activity.progress;
+
+        const addButton = document.querySelector('button[onclick="addActivity()"]');
+        addButton.textContent = 'Update Activity';
+        addButton.onclick = () => {
+            const updatedActivity = {
+                id: activityId,
+                goalId: currentGoalId,
+                title: document.getElementById('activityTitle').value,
+                progress: parseInt(document.getElementById('activityProgress').value)
+            };
+
+            const updateTransaction = db.transaction(['activities'], 'readwrite');
+            const updateStore = updateTransaction.objectStore('activities');
+
+            updateStore.put(updatedActivity).onsuccess = () => {
+                document.getElementById('activityTitle').value = '';
+                document.getElementById('activityProgress').value = '';
+                updateGoalProgress(currentGoalId);
+                showActivities(currentGoalId);
+
+                addButton.textContent = 'Add Activity';
+                addButton.onclick = addActivity;
+            };
+        };
+    };
 }
