@@ -407,3 +407,28 @@ function updateActivity(activityId) {
         };
     };
 }
+
+// Activity Management Functions
+function deleteActivity(activityId) {
+    if (!confirm('Are you sure you want to delete this activity?')) {
+        return;
+    }
+
+    const transaction = db.transaction(['activities'], 'readwrite');
+    const store = transaction.objectStore('activities');
+
+    store.delete(activityId).onsuccess = () => {
+        // After deletion, update the goal progress and refresh activities list
+        updateGoalProgress(currentGoalId);
+        showActivities(currentGoalId);
+    };
+
+    transaction.oncomplete = () => {
+        console.log('Activity deleted successfully');
+    };
+
+    transaction.onerror = (event) => {
+        console.error('Error deleting activity:', event.target.error);
+        alert('There was an error deleting the activity.');
+    };
+}
