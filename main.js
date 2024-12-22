@@ -80,39 +80,54 @@ function createGoalRow(goal) {
         goal.progress >= 50 ? 'text-yellow-500' :
             'text-red-500';
 
-    row.className = 'hover:bg-gray-50';
-    row.innerHTML = `
-        <td class="px-6 py-4 whitespace-nowrap">
-            <div class="text-sm font-medium text-gray-900">${goal.title}</div>
-        </td>
-        <td class="px-6 py-4">
-            <div class="text-sm text-gray-500">${goal.description}</div>
-        </td>
-        <td class="px-6 py-4 whitespace-nowrap">
-            <div class="text-sm text-gray-500">${new Date(goal.deadline).toLocaleDateString()}</div>
-        </td>
-        <td class="px-6 py-4 whitespace-nowrap">
-            <div class="flex items-center">
-                <div class="relative w-full h-2 bg-gray-200 rounded">
-                    <div class="absolute top-0 left-0 h-full ${progressClass} bg-current rounded" 
-                         style="width: ${goal.progress}%"></div>
+    // First, get the activity count for this goal
+    const transaction = db.transaction(['activities'], 'readonly');
+    const index = transaction.objectStore('activities').index('goalId');
+    const request = index.getAll(goal.id);
+
+    request.onsuccess = () => {
+        const activitiesCount = request.result.length;
+
+        row.className = 'hover:bg-gray-50';
+        row.innerHTML = `
+            <td class="px-6 py-4 whitespace-nowrap">
+                <div class="text-sm font-medium text-gray-900">${goal.title}</div>
+            </td>
+            <td class="px-6 py-4">
+                <div class="text-sm text-gray-500">${goal.description}</div>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+                <div class="text-sm text-gray-500">${new Date(goal.deadline).toLocaleDateString()}</div>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+                <div class="flex items-center">
+                    <div class="relative w-full h-2 bg-gray-200 rounded">
+                        <div class="absolute top-0 left-0 h-full ${progressClass} bg-current rounded" 
+                             style="width: ${goal.progress}%"></div>
+                    </div>
+                    <span class="ml-2 text-sm ${progressClass}">${goal.progress}%</span>
                 </div>
-                <span class="ml-2 text-sm ${progressClass}">${goal.progress}%</span>
-            </div>
-        </td>
-        <td class="px-6 py-4 whitespace-nowrap">
-            <button onclick="showActivities(${goal.id})" 
-                    class="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                View Activities
-            </button>
-        </td>
-        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-            <button onclick="deleteGoal(${goal.id})" 
-                    class="text-red-600 hover:text-red-900">Delete</button>
-            <button onclick="updateGoal(${goal.id})" 
-                    class="text-blue-600 hover:text-blue-900">Update</button>
-        </td>
-    `;
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+                <div class="flex items-center space-x-2">
+                    <button onclick="showActivities(${goal.id})" 
+                            class="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        View Activities
+                    </button>
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                        ${activitiesCount} ${activitiesCount === 1 ? 'activity' : 'activities'}
+                    </span>
+                </div>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                <button onclick="deleteGoal(${goal.id})" 
+                        class="text-red-600 hover:text-red-900">Delete</button>
+                <button onclick="updateGoal(${goal.id})" 
+                        class="text-blue-600 hover:text-blue-900">Update</button>
+            </td>
+        `;
+    };
+
     return row;
 }
 
@@ -594,4 +609,25 @@ function clearActivityForm() {
     document.getElementById('activityTitle').value = '';
     document.getElementById('activityProgress').value = '';
     document.getElementById('activityWeight').value = '';
+}
+
+// Helper function to update activity counts for all goals
+function updateActivityCounts() {
+    const transaction = db.transaction(['goals', 'activities'], 'readonly');
+    const goalsStore = transaction.objectStore('goals');
+    const activitiesIndex = transaction.objectStore('activities').index('goalId');
+
+    goalsStore.getAll().onsuccess = (event) => {
+        const goals = event.target.result;
+        goals.forEach(goal => {
+            const request = activitiesIndex.getAll(goal.id);
+            request.onsuccess = () => {
+                const count = request.result.length;
+                const countLabel = document.querySelector(`[data-goal-id="${goal.id}"] .activity-count`);
+                if (countLabel) {
+                    countLabel.textContent = `${count} ${count === 1 ? 'activity' : 'activities'}`;
+                }
+            };
+        });
+    };
 }
