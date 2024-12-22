@@ -72,6 +72,8 @@ function loadGoals() {
             tbody.appendChild(row);
         });
     };
+
+    updateActivityCounts();
 }
 
 function createGoalRow(goal) {
@@ -80,7 +82,6 @@ function createGoalRow(goal) {
         goal.progress >= 50 ? 'text-yellow-500' :
             'text-red-500';
 
-    // First, get the activity count for this goal
     const transaction = db.transaction(['activities'], 'readonly');
     const index = transaction.objectStore('activities').index('goalId');
     const request = index.getAll(goal.id);
@@ -89,6 +90,8 @@ function createGoalRow(goal) {
         const activitiesCount = request.result.length;
 
         row.className = 'hover:bg-gray-50';
+        // Add data-goal-id to the row for easier reference
+        row.setAttribute('data-goal-id', goal.id);
         row.innerHTML = `
             <td class="px-6 py-4 whitespace-nowrap">
                 <div class="text-sm font-medium text-gray-900">${goal.title}</div>
@@ -114,7 +117,7 @@ function createGoalRow(goal) {
                             class="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                         View Activities
                     </button>
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                    <span class="activity-count inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                         ${activitiesCount} ${activitiesCount === 1 ? 'activity' : 'activities'}
                     </span>
                 </div>
@@ -247,6 +250,8 @@ function addActivity() {
             updateRemainingWeight();
         };
     });
+
+    updateActivityCounts();
 }
 
 async function checkTotalWeight(newWeight) {
@@ -603,6 +608,8 @@ function deleteActivity(activityId) {
         console.error('Error deleting activity:', event.target.error);
         alert('There was an error deleting the activity.');
     };
+
+    updateActivityCounts();
 }
 
 function clearActivityForm() {
@@ -623,9 +630,12 @@ function updateActivityCounts() {
             const request = activitiesIndex.getAll(goal.id);
             request.onsuccess = () => {
                 const count = request.result.length;
-                const countLabel = document.querySelector(`[data-goal-id="${goal.id}"] .activity-count`);
-                if (countLabel) {
-                    countLabel.textContent = `${count} ${count === 1 ? 'activity' : 'activities'}`;
+                const goalRow = document.querySelector(`tr[data-goal-id="${goal.id}"]`);
+                if (goalRow) {
+                    const countLabel = goalRow.querySelector('.activity-count');
+                    if (countLabel) {
+                        countLabel.textContent = `${count} ${count === 1 ? 'activity' : 'activities'}`;
+                    }
                 }
             };
         });
