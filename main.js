@@ -262,6 +262,7 @@ function updateRemainingWeight() {
     };
 }
 
+// Update the updateGoalProgress function to use weighted calculations
 function updateGoalProgress(goalId) {
     const transaction = db.transaction(['activities', 'goals'], 'readwrite');
     const activitiesIndex = transaction.objectStore('activities').index('goalId');
@@ -270,12 +271,16 @@ function updateGoalProgress(goalId) {
     request.onsuccess = () => {
         const activities = request.result;
         let totalProgress = 0;
+        let totalWeight = 0;
 
         if (activities.length > 0) {
-            // Calculate weighted progress
-            totalProgress = activities.reduce((sum, activity) => {
-                return sum + (activity.progress * activity.weight / 100);
-            }, 0);
+            activities.forEach(activity => {
+                totalProgress += (activity.progress * activity.weight);
+                totalWeight += activity.weight;
+            });
+
+            // Calculate weighted average progress
+            totalProgress = totalWeight > 0 ? Math.round(totalProgress / totalWeight) : 0;
         }
 
         const goalsStore = transaction.objectStore('goals');
@@ -284,13 +289,18 @@ function updateGoalProgress(goalId) {
         getGoal.onsuccess = () => {
             const goal = getGoal.result;
             if (goal) {
-                goal.progress = Math.round(totalProgress);
+                goal.progress = totalProgress;
                 goalsStore.put(goal).onsuccess = () => {
                     loadGoals();
                     checkGoalCompletion(goal);
                 };
             }
         };
+    };
+
+    transaction.onerror = (event) => {
+        console.error('Error updating goal progress:', event.target.error);
+        showError('There was an error updating the goal progress');
     };
 }
 
@@ -485,33 +495,72 @@ function updateActivity(activityId) {
 
     store.get(activityId).onsuccess = (event) => {
         const activity = event.target.result;
+        const originalWeight = activity.weight;
 
+        // Populate form fields with current values
         document.getElementById('activityTitle').value = activity.title;
         document.getElementById('activityProgress').value = activity.progress;
+        document.getElementById('activityWeight').value = activity.weight;
+
+        // Update the remaining weight to include the current activity's weight
+        const currentRemaining = parseInt(document.getElementById('remainingWeight').textContent);
+        document.getElementById('remainingWeight').textContent = currentRemaining + originalWeight;
+        document.getElementById('activityWeight').max = currentRemaining + originalWeight;
 
         const addButton = document.querySelector('button[onclick="addActivity()"]');
         addButton.textContent = 'Update Activity';
         addButton.onclick = () => {
+            const newTitle = document.getElementById('activityTitle').value;
+            const newProgress = parseInt(document.getElementById('activityProgress').value);
+            const newWeight = parseInt(document.getElementById('activityWeight').value);
+
+            if (!newTitle || isNaN(newProgress) || isNaN(newWeight)) {
+                showError('Please fill in all fields');
+                return;
+            }
+
+            if (newProgress < 0 || newProgress > 100) {
+                showError('Progress must be between 0 and 100');
+                return;
+            }
+
+            if (newWeight <= 0 || newWeight > (currentRemaining + originalWeight)) {
+                showError(`Weight must be between 1 and ${currentRemaining + originalWeight}`);
+                return;
+            }
+
             const updatedActivity = {
                 id: activityId,
                 goalId: currentGoalId,
-                title: document.getElementById('activityTitle').value,
-                progress: parseInt(document.getElementById('activityProgress').value)
+                title: newTitle,
+                progress: newProgress,
+                weight: newWeight,
+                weightedProgress: (newProgress * newWeight) / 100
             };
 
             const updateTransaction = db.transaction(['activities'], 'readwrite');
             const updateStore = updateTransaction.objectStore('activities');
 
             updateStore.put(updatedActivity).onsuccess = () => {
-                document.getElementById('activityTitle').value = '';
-                document.getElementById('activityProgress').value = '';
+                clearActivityForm();
                 updateGoalProgress(currentGoalId);
                 showActivities(currentGoalId);
 
+                // Reset button state
                 addButton.textContent = 'Add Activity';
                 addButton.onclick = addActivity;
             };
+
+            updateTransaction.onerror = (event) => {
+                console.error('Error updating activity:', event.target.error);
+                showError('There was an error updating the activity');
+            };
         };
+    };
+
+    transaction.onerror = (event) => {
+        console.error('Error retrieving activity:', event.target.error);
+        showError('There was an error retrieving the activity');
     };
 }
 
