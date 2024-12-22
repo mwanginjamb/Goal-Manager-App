@@ -63,27 +63,12 @@
 
 
         <!-- Activities Modal -->
-        <div x-data="{ 
-            open: false,
-            close() {
-                this.open = false;
-                closeActivitiesModal();
-            }
-        }" x-show="open" id="activitiesModal"
+        <!-- Updated Activities Modal with Weight Input -->
+        <div x-data="activitiesModal" x-show="open" id="activitiesModal"
             class="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center hidden"
-            @keydown.escape.window="close()" x-transition:enter="transition ease-out duration-300"
-            x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
-            x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100"
-            x-transition:leave-end="opacity-0">
+            @keydown.escape.window="close()">
 
-            <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl mx-4" @click.outside="close()"
-                x-transition:enter="transition ease-out duration-300"
-                x-transition:enter-start="opacity-0 transform scale-95"
-                x-transition:enter-end="opacity-100 transform scale-100"
-                x-transition:leave="transition ease-in duration-200"
-                x-transition:leave-start="opacity-100 transform scale-100"
-                x-transition:leave-end="opacity-0 transform scale-95">
-
+            <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl mx-4" @click.outside="close()">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-lg font-semibold text-gray-700">Activities for: <span id="currentGoalTitle"></span>
                     </h3>
@@ -96,17 +81,31 @@
                 </div>
 
                 <div class="space-y-4">
+                    <!-- Weight Remaining Indicator -->
+                    <div class="bg-blue-50 p-3 rounded-md">
+                        <p class="text-sm text-blue-700">
+                            Remaining Weight: <span id="remainingWeight" class="font-semibold">100</span>%
+                        </p>
+                    </div>
+
+                    <!-- Activity Form -->
                     <div class="flex flex-col md:flex-row gap-4">
                         <input type="text" id="activityTitle" placeholder="Activity Title"
                             class="flex-1 px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                         <input type="number" id="activityProgress" min="0" max="100" placeholder="Progress %"
-                            class="w-full md:w-32 px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            class="w-full md:w-24 px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <input type="number" id="activityWeight" min="0" max="100" placeholder="Weight %"
+                            class="w-full md:w-24 px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                         <button onclick="addActivity()"
                             class="bg-blue-500 text-white px-6 py-2 rounded-md hover:bg-blue-600 transition-colors">
                             Add Activity
                         </button>
                     </div>
 
+                    <!-- Error Message Display -->
+                    <div id="weightError" class="hidden text-red-500 text-sm"></div>
+
+                    <!-- Activities Table -->
                     <div class="overflow-x-auto">
                         <table class="min-w-full">
                             <thead class="bg-gray-50">
@@ -117,6 +116,12 @@
                                     <th
                                         class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Progress</th>
+                                    <th
+                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Weight</th>
+                                    <th
+                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Weighted Progress</th>
                                     <th
                                         class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Actions</th>

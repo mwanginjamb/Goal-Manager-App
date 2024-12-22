@@ -185,30 +185,112 @@ function showActivities(goalId) {
             tbody.appendChild(row);
         });
     };
+
+    updateRemainingWeight();
 }
 
 function addActivity() {
     const title = document.getElementById('activityTitle').value;
     const progress = parseInt(document.getElementById('activityProgress').value);
+    const weight = parseInt(document.getElementById('activityWeight').value);
 
-    if (!title || isNaN(progress) || progress < 0 || progress > 100) {
-        alert('Please enter valid activity details');
+    if (!title || isNaN(progress) || isNaN(weight)) {
+        showError('Please fill in all fields');
         return;
     }
 
-    const activity = {
-        goalId: currentGoalId,
-        title,
-        progress
+    if (progress < 0 || progress > 100) {
+        showError('Progress must be between 0 and 100');
+        return;
+    }
+
+    if (weight <= 0 || weight > 100) {
+        showError('Weight must be between 1 and 100');
+        return;
+    }
+
+    // Check if total weight would exceed 100%
+    checkTotalWeight(weight).then(isValid => {
+        if (!isValid) {
+            showError('Total weight cannot exceed 100%');
+            return;
+        }
+
+        const activity = {
+            goalId: currentGoalId,
+            title,
+            progress,
+            weight,
+            weightedProgress: (progress * weight) / 100
+        };
+
+        const transaction = db.transaction(['activities'], 'readwrite');
+        transaction.objectStore('activities').add(activity).onsuccess = () => {
+            clearActivityForm();
+            updateGoalProgress(currentGoalId);
+            showActivities(currentGoalId);
+            updateRemainingWeight();
+        };
+    });
+}
+
+async function checkTotalWeight(newWeight) {
+    return new Promise((resolve) => {
+        const transaction = db.transaction(['activities'], 'readonly');
+        const index = transaction.objectStore('activities').index('goalId');
+        const request = index.getAll(currentGoalId);
+
+        request.onsuccess = () => {
+            const activities = request.result;
+            const currentTotal = activities.reduce((sum, activity) => sum + activity.weight, 0);
+            resolve(currentTotal + newWeight <= 100);
+        };
+    });
+}
+
+function updateRemainingWeight() {
+    const transaction = db.transaction(['activities'], 'readonly');
+    const index = transaction.objectStore('activities').index('goalId');
+    const request = index.getAll(currentGoalId);
+
+    request.onsuccess = () => {
+        const activities = request.result;
+        const totalWeight = activities.reduce((sum, activity) => sum + activity.weight, 0);
+        const remaining = 100 - totalWeight;
+        document.getElementById('remainingWeight').textContent = remaining;
+        document.getElementById('activityWeight').max = remaining;
     };
+}
 
+function updateGoalProgress(goalId) {
     const transaction = db.transaction(['activities', 'goals'], 'readwrite');
+    const activitiesIndex = transaction.objectStore('activities').index('goalId');
+    const request = activitiesIndex.getAll(goalId);
 
-    transaction.objectStore('activities').add(activity).onsuccess = () => {
-        updateGoalProgress(currentGoalId);
-        document.getElementById('activityTitle').value = '';
-        document.getElementById('activityProgress').value = '';
-        showActivities(currentGoalId);
+    request.onsuccess = () => {
+        const activities = request.result;
+        let totalProgress = 0;
+
+        if (activities.length > 0) {
+            // Calculate weighted progress
+            totalProgress = activities.reduce((sum, activity) => {
+                return sum + (activity.progress * activity.weight / 100);
+            }, 0);
+        }
+
+        const goalsStore = transaction.objectStore('goals');
+        const getGoal = goalsStore.get(goalId);
+
+        getGoal.onsuccess = () => {
+            const goal = getGoal.result;
+            if (goal) {
+                goal.progress = Math.round(totalProgress);
+                goalsStore.put(goal).onsuccess = () => {
+                    loadGoals();
+                    checkGoalCompletion(goal);
+                };
+            }
+        };
     };
 }
 
@@ -228,16 +310,32 @@ function createActivityRow(activity) {
                 <span class="ml-2 text-sm text-gray-600">${activity.progress}%</span>
             </div>
         </td>
+        <td class="px-6 py-4 whitespace-nowrap">
+            <div class="text-sm text-gray-600">${activity.weight}%</div>
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap">
+            <div class="text-sm text-gray-600">${((activity.progress * activity.weight) / 100).toFixed(1)}%</div>
+        </td>
         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
             <button onclick="deleteActivity(${activity.id})" 
-                    class="text-red-600 hover:text-red-900">Delete</button>
+                    class="text-red-600 hover:text-red-900 transition-colors duration-200">Delete</button>
             <button onclick="updateActivity(${activity.id})" 
-                    class="text-blue-600 hover:text-blue-900">Update</button>
+                    class="text-blue-600 hover:text-blue-900 transition-colors duration-200">Update</button>
         </td>
     `;
     return row;
 }
 
+function showError(message) {
+    const errorDiv = document.getElementById('weightError');
+    errorDiv.textContent = message;
+    errorDiv.classList.remove('hidden');
+    setTimeout(() => {
+        errorDiv.classList.add('hidden');
+    }, 3000);
+}
+
+// Updated updateGoalProgress function to handle empty activities case
 function updateGoalProgress(goalId) {
     const transaction = db.transaction(['activities', 'goals'], 'readwrite');
     const activitiesIndex = transaction.objectStore('activities').index('goalId');
@@ -245,22 +343,31 @@ function updateGoalProgress(goalId) {
 
     request.onsuccess = () => {
         const activities = request.result;
-        if (activities.length === 0) return;
+        let averageProgress = 0;
 
-        const totalProgress = activities.reduce((sum, activity) => sum + activity.progress, 0);
-        const averageProgress = Math.round(totalProgress / activities.length);
+        if (activities.length > 0) {
+            const totalProgress = activities.reduce((sum, activity) => sum + activity.progress, 0);
+            averageProgress = Math.round(totalProgress / activities.length);
+        }
 
         const goalsStore = transaction.objectStore('goals');
         const getGoal = goalsStore.get(goalId);
 
         getGoal.onsuccess = () => {
             const goal = getGoal.result;
-            goal.progress = averageProgress;
-            goalsStore.put(goal).onsuccess = () => {
-                loadGoals();
-                checkGoalCompletion(goal);
-            };
+            if (goal) {
+                goal.progress = averageProgress;
+                goalsStore.put(goal).onsuccess = () => {
+                    loadGoals();
+                    checkGoalCompletion(goal);
+                };
+            }
         };
+    };
+
+    transaction.onerror = (event) => {
+        console.error('Error updating goal progress:', event.target.error);
+        alert('There was an error updating the goal progress.');
     };
 }
 
@@ -421,6 +528,7 @@ function deleteActivity(activityId) {
         // After deletion, update the goal progress and refresh activities list
         updateGoalProgress(currentGoalId);
         showActivities(currentGoalId);
+        updateRemainingWeight();
     };
 
     transaction.oncomplete = () => {
@@ -431,4 +539,10 @@ function deleteActivity(activityId) {
         console.error('Error deleting activity:', event.target.error);
         alert('There was an error deleting the activity.');
     };
+}
+
+function clearActivityForm() {
+    document.getElementById('activityTitle').value = '';
+    document.getElementById('activityProgress').value = '';
+    document.getElementById('activityWeight').value = '';
 }
