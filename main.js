@@ -329,7 +329,7 @@ function createActivityRow(activity) {
     row.className = 'hover:bg-gray-50';
     row.innerHTML = `
         <td class="px-6 py-4 whitespace-nowrap">
-            <div class="text-sm text-gray-900">${activity.title}</div>
+            <div class="text-sm text-gray-900">${formatActivityTitle(activity.title)}</div>
         </td>
         <td class="px-6 py-4 whitespace-nowrap">
             <div class="flex items-center">
@@ -641,3 +641,27 @@ function updateActivityCounts() {
         });
     };
 }
+
+// Helper function to check if a string is a valid URL
+function isValidUrl(string) {
+    try {
+        new URL(string);
+        return true;
+    } catch (_) {
+        return false;
+    }
+}
+
+// Helper function to format title as link if needed
+function formatActivityTitle(text) {
+    // URL regex pattern that matches common URL formats
+    const urlPattern = /https?:\/\/(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&//=]*)/gi;
+
+    // Replace each URL in the text with a link
+    return text.replace(urlPattern, url => {
+        // Create link element with appropriate styling
+        return `<a href="${url}" target="_blank" class="text-blue-600 hover:text-blue-800 underline">view</a>`;
+    });
+}
+
+
