@@ -210,7 +210,7 @@ function showActivities(goalId) {
 function addActivity() {
     const title = document.getElementById('activityTitle').value;
     const progress = parseInt(document.getElementById('activityProgress').value);
-    const weight = parseInt(document.getElementById('activityWeight').value);
+    const weight = parseFloat(document.getElementById('activityWeight').value);
 
     if (!title || isNaN(progress) || isNaN(weight)) {
         showError('Please fill in all fields');
@@ -243,7 +243,7 @@ function addActivity() {
         };
 
         const transaction = db.transaction(['activities'], 'readwrite');
-        transaction.objectStore('activities').add(activity).onsuccess = () => {
+        transaction.objectStore('activities').add(activity).onsuccess = (e) => {
             clearActivityForm();
             updateGoalProgress(currentGoalId);
             showActivities(currentGoalId);
@@ -279,6 +279,12 @@ function updateRemainingWeight() {
         const remaining = 100 - totalWeight;
         document.getElementById('remainingWeight').textContent = remaining;
         document.getElementById('activityWeight').max = remaining;
+
+        // Initialize activity progress with 0
+        document.getElementById('activityProgress').value = 0;
+        // define glanularity of activity weight
+        document.getElementById('activityWeight').step = 0.01;
+
     };
 }
 
@@ -344,7 +350,7 @@ function createActivityRow(activity) {
             <div class="text-sm text-gray-600">${activity.weight}%</div>
         </td>
         <td class="px-6 py-4 whitespace-nowrap">
-            <div class="text-sm text-gray-600">${((activity.progress * activity.weight) / 100).toFixed(1)}%</div>
+            <div class="text-sm text-gray-600">${((activity.progress * activity.weight) / 100).toFixed(2)}%</div>
         </td>
         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
             <button onclick="deleteActivity(${activity.id})" 
@@ -532,7 +538,7 @@ function updateActivity(activityId) {
         addButton.onclick = () => {
             const newTitle = document.getElementById('activityTitle').value;
             const newProgress = parseInt(document.getElementById('activityProgress').value);
-            const newWeight = parseInt(document.getElementById('activityWeight').value);
+            const newWeight = parseFloat(document.getElementById('activityWeight').value);
 
             if (!newTitle || isNaN(newProgress) || isNaN(newWeight)) {
                 showError('Please fill in all fields');

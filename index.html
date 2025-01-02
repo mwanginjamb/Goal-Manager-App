@@ -68,7 +68,7 @@
             class="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center hidden"
             @keydown.escape.window="close()">
 
-            <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl mx-4" @click.outside="close()">
+            <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-3xl mx-4" @click.outside="close()">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-lg font-semibold text-gray-700">Activities for: <span id="currentGoalTitle"></span>
                     </h3>
@@ -94,7 +94,7 @@
                             class="flex-1 px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                         <input type="number" id="activityProgress" min="0" max="100" placeholder="Progress %"
                             class="w-full md:w-24 px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <input type="number" id="activityWeight" min="0" max="100" placeholder="Weight %"
+                        <input type="number" id="activityWeight" min="0" max="100" step="0.01" placeholder="Weight %"
                             class="w-full md:w-24 px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                         <button onclick="addActivity()"
                             class="bg-blue-500 text-white px-6 py-2 rounded-md hover:bg-blue-600 transition-colors">
@@ -106,7 +106,7 @@
                     <div id="weightError" class="hidden text-red-500 text-sm"></div>
 
                     <!-- Activities Table -->
-                    <div class="overflow-x-auto">
+                    <div class="overflow-x-auto overflow-y-auto" style="max-height: 600px;">
                         <table class="min-w-full">
                             <thead class="bg-gray-50">
                                 <tr>
